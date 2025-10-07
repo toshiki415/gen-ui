@@ -1,9 +1,9 @@
 {
-  "name": "@tosk/gemini-component",
-  "version": "1.0.4",
-  "main": "gemini-component.js",
+  "name": "@tosk/gen-ui",
+  "version": "1.0.1",
+  "main": "gen-ui.js",
   "files": [
-    "gemini-component.js"
+    "gen-ui.js"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

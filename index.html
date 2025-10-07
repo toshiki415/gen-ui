@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title></title>
+    <script type="module" src="gen-ui.js"></script>
 </head>
 <body>
-    <img src="/images/tablet.jpeg" alt="タブレット画像">
-    <h2>タブレット</h2>
-    <p>50000円</p>
-    <p>最新OS搭載、一日中使えるバッテリー</p>
+    <gen-ui
+        api-key="AIzaSyDVBhaITOlAR6zrhdfKcUc2QDeNmackFjs"
+        request="商品を陳列するためのカードとして、全体に枠線と影をつけてください。
+        カードの大きさは画像の大きさに少し余白を持たせるぐらいで。">
+
+        <img src="/image/tablet.jpeg" alt="タブレット画像">
+        <h2>タブレット</h2>
+        <p>50000円</p>
+        <p>最新OS搭載、一日中使えるバッテリー</p>
+    </gen-ui>
 </body>
 </html>
