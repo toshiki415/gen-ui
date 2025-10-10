@@ -19,11 +19,22 @@ class GenerativeUi extends HTMLElement {
           border: 1px solid #d1d5db;
           border-radius: 0.5rem;
           padding: 1.5rem;
-          max-width: 800px;
+          max-width: 1200px;
           box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
           min-height: 200px;
           position: relative;
         }
+        .wrapper { display: flex }
+        #history-sidebar { width: 250px; border-right: 1px solid #d1d5db; padding: 1rem; overflow-y: auto; max-height: 500px; }
+        #history-sidebar h2 { font-size: 1.1rem; margin: 0 0 1rem 0; }
+        #history-list { list-style: none; padding: 0; margin: 0; }
+        .history-item { padding: 0.75rem; cursor: pointer; border-radius: 0.375rem; margin-bottom: 0.5rem; border: 1px solid #e5e7eb; }
+        .history-item:hover { background-color: #f3f4f6; }
+        .history-item.selected { background-color: #e0e7ff; border-color: #a5b4fc; }
+        .history-item-prompt { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item-date { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+        #main-content { flex: 1; padding: 1.5rem; min-width: 0; position: relative; }
+
         .loading-overlay {
           position: absolute; top: 0; left: 0; right: 0; bottom: 0;
           background: rgba(255, 255, 255, 0.8);
@@ -75,42 +86,50 @@ class GenerativeUi extends HTMLElement {
           z-index: 10;
         }
       </style>
-      <div class="container">
-        <div id="loading-overlay" class="loading-overlay hidden">
-          <div class="spinner"></div>
-          <div>UIを生成中...</div>
-        </div>
-        <div id="error-display" class="hidden"></div>
-        <div id="output-container" class="hidden">
-          <div id="response-time-display"></div>
-          <div class="tabs">
-            <div class="tab active" data-tab="code">コード</div>
-            <div class="tab" data-tab="preview">プレビュー</div>
+      <div class="wrapper">
+        <aside id="history-sidebar">
+          <h2>生成履歴</h2>
+          <div id="history-loading" class="hidden">履歴を読み込み中...</div>
+          <ul id="history-list"></ul>
+        </aside>
+
+        <main id="main-content">
+          <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <div>UIを生成中...</div>
           </div>
-          <div id="code" class="tab-content active">
-            <div class="code-area">
-              <div class="output-box">
-                <h3>HTML</h3>
-                <button class="copy-btn" data-target="html-output" aria-label="HTMLコードをコピー">
-                  ${GenerativeUi.COPY_ICON_SVG}
-                </button>
-                <div class="copy-feedback" data-for="html-output">コピーしました</div>
-                <pre><code id="html-output"></code></pre>
-              </div>
-              <div class="output-box">
-                <h3>CSS</h3>
-                <button class="copy-btn" data-target="css-output" aria-label="CSSコードをコピー">
-                  ${GenerativeUi.COPY_ICON_SVG}
-                </button>
-                <div class="copy-feedback" data-for="css-output">コピーしました</div>
-                <pre><code id="css-output"></code></pre>
+          <div id="error-display" class="hidden"></div>
+          <div id="output-container" class="hidden">
+            <div id="response-time-display"></div>
+            <div class="tabs">
+              <div class="tab active" data-tab="code">コード</div>
+              <div class="tab" data-tab="preview">プレビュー</div>
+            </div>
+            <div id="code" class="tab-content active">
+              <div class="code-area">
+                <div class="output-box">
+                  <h3>HTML</h3>
+                  <button class="copy-btn" data-target="html-output" aria-label="HTMLコードをコピー">
+                    ${GenerativeUi.COPY_ICON_SVG}
+                  </button>
+                  <div class="copy-feedback" data-for="html-output">コピーしました</div>
+                  <pre><code id="html-output"></code></pre>
+                </div>
+                <div class="output-box">
+                  <h3>CSS</h3>
+                  <button class="copy-btn" data-target="css-output" aria-label="CSSコードをコピー">
+                    ${GenerativeUi.COPY_ICON_SVG}
+                  </button>
+                  <div class="copy-feedback" data-for="css-output">コピーしました</div>
+                  <pre><code id="css-output"></code></pre>
+                </div>
               </div>
             </div>
+            <div id="preview" class="tab-content">
+              <iframe id="preview-output" title="生成されたUIのプレビュー"></iframe>
+            </div>
           </div>
-          <div id="preview" class="tab-content">
-            <iframe id="preview-output" title="生成されたUIのプレビュー"></iframe>
-          </div>
-        </div>
+        </main>
       </div>
     `;
     return template;
@@ -127,6 +146,9 @@ class GenerativeUi extends HTMLElement {
     tabs: '.tab',
     tabContents: '.tab-content',
     responseTimeDisplay: '#response-time-display',
+    historySidebar: '#history-sidebar',
+    historyList: '#history-list',
+    historyLoading: '#history-loading',
   };
 
   static CLASSES = {
@@ -148,6 +170,9 @@ class GenerativeUi extends HTMLElement {
   #originalHtml = '';
   #elements = {};
   #abortController = null;
+  #historyApiUrl = null;
+  #histories = [];
+  #currentHistoryId = null;
 
   // 3. ライフサイクル
 
@@ -164,6 +189,10 @@ class GenerativeUi extends HTMLElement {
     if (this.#validateAttributes()) {
       this.#addEventListeners();
       this.#processRequest();
+    }
+
+    if (this.#historyApiUrl) {
+      this.#fetchHistory();
     }
   }
 
@@ -196,6 +225,23 @@ class GenerativeUi extends HTMLElement {
     this.#switchTab(tabName);
   }
 
+  #handleHistoryClick = (event) => {
+    const historyItemElement = event.currentTarget;
+    const historyId = historyItemElement.dataset.id;
+    const selectedHistory = this.#histories.find(h => h.id === historyId);
+
+    if (selectedHistory) {
+      this.#currentHistoryId = historyId;
+      // 履歴データでUIを更新
+      const payload = {
+        html: selectedHistory.generatedHtml,
+        css: selectedHistory.generatedCss,
+      };
+      this.#updateUIState(GenerativeUi.UI_STATES.SUCCESS, payload);
+      this.#updateHistorySelection(); // 選択状態のハイライトを更新
+    }
+  };
+
   // 5. コアロジック
 
   #processRequest = async () => {
@@ -210,6 +256,10 @@ class GenerativeUi extends HTMLElement {
       const jsonResponse = this.#parseApiResponse(responseText);
 
       this.#updateUIState(GenerativeUi.UI_STATES.SUCCESS, jsonResponse);
+
+      if (this.#historyApiUrl) {
+        await this.#saveHistory(jsonResponse.html, jsonResponse.css);
+      }
     } catch (error) {
       if (error.name !== 'AboutError') {
         console.error("処理中にエラーが発生しました:", error);
@@ -268,6 +318,44 @@ class GenerativeUi extends HTMLElement {
     }
   }
 
+  async #fetchHistory() {
+    this.#elements.historyLoading.classList.remove(GenerativeUi.CLASSES.HIDDEN);
+    try {
+      const response = await fetch(this.#historyApiUrl);
+      if (!response.ok) throw new Error(`履歴の取得に失敗しました: ${response.statusText}`);
+      this.#histories = await response.json();
+      this.#renderHistory();
+    } catch (error) {
+      console.error(error);
+      this.#elements.historyList.innerHTML = `<li>履歴の読み込みに失敗しました。</li>`;
+    } finally {
+      this.#elements.historyLoading.classList.add(GenerativeUi.CLASSES.HIDDEN);
+    }
+  }
+
+  async #saveHistory(generatedHtml, generatedCss) {
+    try {
+      const response = await fetch(this.#historyApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestPrompt: this.#requestPrompt,
+          originalHtml: this.#originalHtml,
+          generatedHtml,
+          generatedCss,
+        }),
+      });
+      if (!response.ok) throw new Error(`履歴の保存に失敗しました: ${response.statusText}`);
+      const newHistory = await response.json();
+      // 履歴リストの先頭に新しい項目を追加して再描画
+      this.#histories.unshift(newHistory);
+      this.#currentHistoryId = newHistory.id; // 保存したものを現在の選択対象とする
+      this.#renderHistory();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   // 6. UI操作
 
   #updateUIState(state, payload = {}) {
@@ -315,6 +403,35 @@ class GenerativeUi extends HTMLElement {
     this.#elements.tabContents.forEach(content => content.classList.toggle(ACTIVE, content.id === tabName));
   };
 
+  #renderHistory() {
+    const list = this.#elements.historyList;
+    list.innerHTML = ''; // リストをクリア
+    if (this.#histories.length === 0) {
+      list.innerHTML = `<li>履歴はありません。</li>`;
+      return;
+    }
+    this.#histories.forEach(history => {
+      const item = document.createElement('li');
+      item.className = 'history-item';
+      item.dataset.id = history.id;
+      const date = new Date(history.createdAt._seconds * 1000).toLocaleString('ja-JP');
+      item.innerHTML = `
+        <div class="history-item-prompt">${history.requestPrompt}</div>
+        <div class="history-item-date">${date}</div>
+      `;
+      item.addEventListener('click', this.#handleHistoryClick);
+      list.appendChild(item);
+    });
+    this.#updateHistorySelection();
+  }
+
+  #updateHistorySelection() {
+    const items = this.shadowRoot.querySelectorAll('.history-item');
+    items.forEach(item => {
+      item.classList.toggle('selected', item.dataset.id === this.#currentHistoryId);
+    });
+  }
+
   // 7. ヘルパー
 
   #cacheElements() {
@@ -328,6 +445,7 @@ class GenerativeUi extends HTMLElement {
     this.#apiKey = this.getAttribute('api-key');
     this.#requestPrompt = this.getAttribute('request');
     this.#originalHtml = this.innerHTML.trim();
+    this.#historyApiUrl = this.getAttribute('history-api-url');
   }
 
   #validateAttributes() {
@@ -354,6 +472,9 @@ class GenerativeUi extends HTMLElement {
   #removeEventListeners() {
     this.#elements.copyButtons.forEach(btn => btn.removeEventListener('click', this.#handleCopy));
     this.#elements.tabs.forEach(tab => tab.removeEventListener('click', this.#handleTabClick));
+    this.shadowRoot.querySelectorAll('.history-item').forEach(item => {
+      item.removeEventListener('click', this.#handleHistoryClick);
+    });
   }
 
   #buildPrompt(html, request) {
