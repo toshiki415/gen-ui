@@ -166,13 +166,14 @@ class GenerativeUi extends HTMLElement {
   // 2. プライベートプロパティ
 
   #apiKey = null;
-  #requestPrompt = null;
   #originalHtml = '';
   #elements = {};
   #abortController = null;
   #historyApiUrl = null;
   #histories = [];
   #currentHistoryId = null;
+  #conversationHistory = [];
+  #rirekiId = null;
 
   // 3. ライフサイクル
 
@@ -188,9 +189,8 @@ class GenerativeUi extends HTMLElement {
 
     if (this.#validateAttributes()) {
       this.#addEventListeners();
-      this.#processRequest();
+      this.#startGeneration();
     }
-
     if (this.#historyApiUrl) {
       this.#fetchHistory();
     }
@@ -208,9 +208,7 @@ class GenerativeUi extends HTMLElement {
     const targetId = button.dataset.target;
     const codeElement = this.shadowRoot.querySelector(`#${targetId}`);
     if (!codeElement) return;
-
     const feedbackElement = this.shadowRoot.querySelector(`.copy-feedback[data-for="${targetId}"]`);
-
     try {
       await navigator.clipboard.writeText(codeElement.textContent);
       feedbackElement.classList.add(GenerativeUi.CLASSES.SHOW);
@@ -229,36 +227,69 @@ class GenerativeUi extends HTMLElement {
     const historyItemElement = event.currentTarget;
     const historyId = historyItemElement.dataset.id;
     const selectedHistory = this.#histories.find(h => h.id === historyId);
-
     if (selectedHistory) {
       this.#currentHistoryId = historyId;
-      // 履歴データでUIを更新
       const payload = {
         html: selectedHistory.generatedHtml,
         css: selectedHistory.generatedCss,
       };
       this.#updateUIState(GenerativeUi.UI_STATES.SUCCESS, payload);
-      this.#updateHistorySelection(); // 選択状態のハイライトを更新
+      this.#updateHistorySelection();
     }
   };
 
   // 5. コアロジック
 
-  #processRequest = async () => {
+  async #startGeneration() {
+    const request = this.getAttribute('request');
+    if (!request) {
+      return;
+    }
     this.#updateUIState(GenerativeUi.UI_STATES.LOADING);
+    if (this.#rirekiId) {
+      try {
+        const pastHistory = await this.#fetchHistoryById(this.#rirekiId);
+        this.#conversationHistory = pastHistory.conversationHistory || [];
+      } catch (error) {
+        this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: error.message });
+        return;
+      }
+    } else {
+      this.#conversationHistory = [];
+    }
+    this.#conversationHistory.push({ role: 'user', content: request });
+    this.#processRequest(request);
+  }
+
+  async #fetchHistoryById(historyId) {
+    if (!this.#historyApiUrl) {
+      throw new Error('履歴の読み込みには「history-api-url」属性が必要です。');
+    }
+    const url = `${this.#historyApiUrl}/${historyId}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`履歴(ID: ${historyId})の読み込みに失敗しました: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
+
+  #processRequest = async (currentPrompt) => {
     this.#abortController = new AbortController();
 
     const startTime = performance.now();
 
     try {
-      const prompt = this.#buildPrompt(this.#originalHtml, this.#requestPrompt);
+      const prompt = this.#buildPrompt(this.#originalHtml, this.#conversationHistory);
       const responseText = await this.#callGeminiApi(prompt, this.#abortController.signal);
       const jsonResponse = this.#parseApiResponse(responseText);
+
+      this.#conversationHistory.push({ role: 'model', content: jsonResponse });
 
       this.#updateUIState(GenerativeUi.UI_STATES.SUCCESS, jsonResponse);
 
       if (this.#historyApiUrl) {
-        await this.#saveHistory(jsonResponse.html, jsonResponse.css);
+        await this.#saveHistory(currentPrompt, jsonResponse.html, jsonResponse.css);
       }
     } catch (error) {
       if (error.name !== 'AboutError') {
@@ -333,23 +364,23 @@ class GenerativeUi extends HTMLElement {
     }
   }
 
-  async #saveHistory(generatedHtml, generatedCss) {
+  async #saveHistory(prompt, generatedHtml, generatedCss) {
     try {
       const response = await fetch(this.#historyApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requestPrompt: this.#requestPrompt,
+          requestPrompt: prompt,
           originalHtml: this.#originalHtml,
           generatedHtml,
           generatedCss,
+          conversationHistory: this.#conversationHistory,
         }),
       });
       if (!response.ok) throw new Error(`履歴の保存に失敗しました: ${response.statusText}`);
       const newHistory = await response.json();
-      // 履歴リストの先頭に新しい項目を追加して再描画
       this.#histories.unshift(newHistory);
-      this.#currentHistoryId = newHistory.id; // 保存したものを現在の選択対象とする
+      this.#currentHistoryId = newHistory.id;
       this.#renderHistory();
     } catch (error) {
       console.error(error);
@@ -405,7 +436,7 @@ class GenerativeUi extends HTMLElement {
 
   #renderHistory() {
     const list = this.#elements.historyList;
-    list.innerHTML = ''; // リストをクリア
+    list.innerHTML = '';
     if (this.#histories.length === 0) {
       list.innerHTML = `<li>履歴はありません。</li>`;
       return;
@@ -418,6 +449,7 @@ class GenerativeUi extends HTMLElement {
       item.innerHTML = `
         <div class="history-item-prompt">${history.requestPrompt}</div>
         <div class="history-item-date">${date}</div>
+        <div style="font-size: 0.7rem; color: #9ca3af; word-break: break-all;">ID: ${history.id}</div>
       `;
       item.addEventListener('click', this.#handleHistoryClick);
       list.appendChild(item);
@@ -443,22 +475,14 @@ class GenerativeUi extends HTMLElement {
 
   #initializeProperties() {
     this.#apiKey = this.getAttribute('api-key');
-    this.#requestPrompt = this.getAttribute('request');
     this.#originalHtml = this.innerHTML.trim();
     this.#historyApiUrl = this.getAttribute('history-api-url');
+    this.#rirekiId = this.getAttribute('rireki');
   }
 
   #validateAttributes() {
     if (!this.#apiKey) {
       this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: '「api-key」属性が必要です。'});
-      return false;
-    }
-    if (!this.#requestPrompt) {
-      this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: '「request」属性が必要です。'});
-      return false;
-    }
-    if (!this.#originalHtml) {
-      this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: 'HTMLの子要素が必要です。'});
       return false;
     }
     return true;
@@ -477,20 +501,37 @@ class GenerativeUi extends HTMLElement {
     });
   }
 
-  #buildPrompt(html, request) {
+  #buildPrompt(html, history) {
+    const historyText = history.map(turn => {
+      if (turn.role === 'user') {
+        return `ユーザーの指示: ${turn.content}`;
+      } else {
+        return `AIの応答:\n${JSON.stringify(turn.content, null, 2)}`;
+      }
+    }).join('\n\n---\n\n');
+
     return `
       あなたはプロのフロントエンジニアです。
-      入力としてユーザーからの指示と、変更対象となるHTMLを受け取ります。
-      あなたはその指示に従って、新しいHTMLと、そのHTMLを装飾するためのCSSコードを生成してください。
-      出力は以下のルールに厳密に従ってください
+      ユーザーとの対話形式でUIを改善していきます。
+      これまでの対話の文脈を考慮して、最後のユーザー指示に従ってHTMLとCSSを生成してください。
+
+      【出力ルール】
       - 回答は必ずJSON形式でなければなりません。
       - JSONオブジェクトは 'html' と 'css' の2つのキーを持つ必要があります。
       - 'html' の値は変更後のHTMLコード（文字列）です。
       - 'css' の値は生成されたCSSコード（文字列）です。
       - JSONを囲む\`\`\`jsonや\`\`\`のようなMarkdownのコードブロック識別子を絶対に含めないでください。
       - 回答には純粋なJSONオブジェクトのみとしてください。説明や他のテキストは一切不要です。
-      ユーザーからの指示: ${request}
-      対象のHTML: ${html}
+
+      【最初のHTML】
+      ${html}
+
+      【これまでの対話履歴】
+      ${historyText}
+
+      【タスク】
+      最後のユーザー指示に基づいて、新しいHTMLとCSSを生成してください。
+      HTMLは常に【最初のHTML】をベースに変更を加える形式で、最終的な完成形を出力してください。
     `;
   }
 
