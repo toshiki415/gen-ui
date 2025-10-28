@@ -1,6 +1,6 @@
 {
   "name": "@tosk/gen-ui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "gen-ui.js",
   "files": [
     "gen-ui.js"

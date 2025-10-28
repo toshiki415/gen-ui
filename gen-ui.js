@@ -1,13 +1,5 @@
-class GenerativeUi extends HTMLElement {
-  // 1. 定数
-
+class GeminiComponent extends HTMLElement {
   static API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-  static COPY_ICON_SVG = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-    </svg>
-  `;
 
   static TEMPLATE = (() => {
     const template = document.createElement('template');
@@ -19,117 +11,170 @@ class GenerativeUi extends HTMLElement {
           border: 1px solid #d1d5db;
           border-radius: 0.5rem;
           padding: 1.5rem;
-          max-width: 1200px;
+          width: 800px;
           box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
           min-height: 200px;
           position: relative;
         }
-        .wrapper { display: flex }
-        #history-sidebar { width: 250px; border-right: 1px solid #d1d5db; padding: 1rem; overflow-y: auto; max-height: 500px; }
-        #history-sidebar h2 { font-size: 1.1rem; margin: 0 0 1rem 0; }
-        #history-list { list-style: none; padding: 0; margin: 0; }
-        .history-item { padding: 0.75rem; cursor: pointer; border-radius: 0.375rem; margin-bottom: 0.5rem; border: 1px solid #e5e7eb; }
-        .history-item:hover { background-color: #f3f4f6; }
-        .history-item.selected { background-color: #e0e7ff; border-color: #a5b4fc; }
-        .history-item-prompt { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .history-item-date { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
-        #main-content { flex: 1; padding: 1.5rem; min-width: 0; position: relative; }
-
         .loading-overlay {
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
           background: rgba(255, 255, 255, 0.8);
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 1rem; font-weight: 500; color: #333;
-          border-radius: 0.5rem; z-index: 20;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          font-weight: 500;
+          color: #333;
+          border-radius: 0.5rem;
+          z-index: 20;
         }
         .spinner {
           border: 4px solid rgba(0, 0, 0, .1);
           border-left-color: #2563eb;
           border-radius: 50%;
-          width: 36px; height: 36px;
+          width: 36px;
+          height: 36px;
           animation: spin 1s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .tabs { display: flex; border-bottom: 1px solid #d1d5db; }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .tabs { display: flex; margin-top: 0rem; border-bottom: 1px solid #d1d5db; }
         .tab { padding: 0.5rem 1rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; }
         .tab.active { border-color: #d1d5db; border-bottom-color: white; border-radius: 0.375rem 0.375rem 0 0; background-color: white; }
-        .tab-content { display: none; border: 1px solid #d1d5db; border-top: none; padding: 1rem; border-radius: 0 0 0.375rem 0.375rem; }
+        .tab-content { display: none; border: 1px solid #d1d5db; border-top: none; padding: 0; border-radius: 0 0 0.375rem 0.375rem; }
+        .tab-content#code { padding: 1rem; }
+        .tab-content#preview { overflow: hidden; border-radius: 0 0 0.375rem 0.375rem; height: 800px; }
         .tab-content.active { display: block; }
-        .code-area { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .output-box { position: relative; }
-        h3 { margin-top: 0; }
-        pre { background-color: #f3f4f6; padding: 1rem; border-radius: 0.375rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; }
-        .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.25rem; background-color: #e5e7eb; border: 1px solid #d1d5db; border-radius: 0.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; transition: background-color 0.2s; z-index: 10; }
-        .copy-btn:hover { background-color: #d1d5db; }
-        .copy-btn svg { width: 16px; height: 16px; }
-        .copy-feedback { position: absolute; top: 0.5rem; right: 38px; background-color: #333; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; white-space: nowrap; }
-        .copy-feedback.show { opacity: 1; }
-
-        #preview-output {
-          width: 100%;
-          height: 100vh;
-          border: none;
+        .code-area { display: flex; flex-direction: column; gap: 1rem; }
+        .output-box {
+          position: relative;
+          border: 1px solid #d1d5db;
+          border-radius: 0.375rem;
+          background-color: #f9fafb;
+          overflow: hidden;
         }
-
-        #error-display { color: #ef4444; font-weight: 500; padding: 1rem; }
-        .hidden { display: none !important; }
-
-        #response-time-display {
-          position: absolute;
-          bottom: 0.5rem;
-          right: 0.5rem;
-          font-size: 0.75rem;
-          color: #6b7280;
+        h3 { display: none; }
+        .code-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
           background-color: #f3f4f6;
+          padding: 0.5rem 1rem;
+          border-bottom: 1px solid #d1d5db;
+          font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 0.875rem;
+          color: #374151;
+        }
+        .file-name {
+          font-weight: 500;
+        }
+        pre {
+          background-color: #f9fafb;
+          padding: 1rem;
+          border-radius: 0;
+          max-height: 300px;
+          overflow-y: auto;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+          margin: 0;
+          border-top: none;
+        }
+        .copy-btn {
+          position: relative;
+          top: auto; right: auto;
+          padding: 0.25rem;
+          background-color: #e5e7eb;
+          border: 1px solid #d1d5db;
+          border-radius: 0.25rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          transition: background-color 0.2s;
+        }
+        .copy-btn:hover { background-color: #d1d5db; }
+        .copy-btn svg { width: 16px; height: 16px; fill: #374151; }
+        .copy-feedback {
+          position: absolute;
+          top: 0.5rem;
+          right: 3.25rem;
+          background-color: #333;
+          color: white;
           padding: 0.25rem 0.5rem;
           border-radius: 0.25rem;
-          z-index: 10;
+          font-size: 0.75rem;
+          opacity: 0;
+          transition: opacity 0.3s ease-in-out;
+          pointer-events: none;
+          white-space: nowrap;
+          z-index: 30;
         }
+        .copy-feedback.show { opacity: 1; }
+        #preview-output {
+            width: 100%;
+            height: 800px;
+            border: none;
+            border-radius: 0 0 0.375rem 0.375rem;
+            display: block;
+        }
+        #error-display { color: #ef4444; font-weight: 500; padding: 1rem; }
+        .hidden { display: none !important; }
       </style>
-      <div class="wrapper">
-        <aside id="history-sidebar">
-          <h2>生成履歴</h2>
-          <div id="history-loading" class="hidden">履歴を読み込み中...</div>
-          <ul id="history-list"></ul>
-        </aside>
+      <div class="container">
+        <div id="loading-overlay" class="loading-overlay hidden">
+          <div class="spinner"></div>
+          <div>UIを生成中...</div>
+        </div>
 
-        <main id="main-content">
-          <div id="loading-overlay" class="loading-overlay hidden">
-            <div class="spinner"></div>
-            <div>UIを生成中...</div>
+        <div id="error-display" class="hidden"></div>
+
+        <div id="output-container" class="hidden">
+          <div class="tabs">
+            <div class="tab active" data-tab="code">コード</div>
+            <div class="tab" data-tab="preview">プレビュー</div>
           </div>
-          <div id="error-display" class="hidden"></div>
-          <div id="output-container" class="hidden">
-            <div id="response-time-display"></div>
-            <div class="tabs">
-              <div class="tab active" data-tab="code">コード</div>
-              <div class="tab" data-tab="preview">プレビュー</div>
-            </div>
-            <div id="code" class="tab-content active">
-              <div class="code-area">
-                <div class="output-box">
-                  <h3>HTML</h3>
-                  <button class="copy-btn" data-target="html-output" aria-label="HTMLコードをコピー">
-                    ${GenerativeUi.COPY_ICON_SVG}
-                  </button>
-                  <div class="copy-feedback" data-for="html-output">コピーしました</div>
-                  <pre><code id="html-output"></code></pre>
+
+          <div id="code" class="tab-content active">
+            <div class="code-area">
+              <div class="output-box">
+                <div class="code-header">
+                  <span class="file-name">index.html</span>
+                  <div style="position: relative;">
+                    <button class="copy-btn" data-target="html-output" aria-label="HTMLコードをコピー">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                    <div class="copy-feedback" data-for="html-output">コピーしました</div>
+                  </div>
                 </div>
-                <div class="output-box">
-                  <h3>CSS</h3>
-                  <button class="copy-btn" data-target="css-output" aria-label="CSSコードをコピー">
-                    ${GenerativeUi.COPY_ICON_SVG}
-                  </button>
-                  <div class="copy-feedback" data-for="css-output">コピーしました</div>
-                  <pre><code id="css-output"></code></pre>
-                </div>
+                <pre><code id="html-output"></code></pre>
               </div>
-            </div>
-            <div id="preview" class="tab-content">
-              <iframe id="preview-output" title="生成されたUIのプレビュー"></iframe>
+              <div class="output-box">
+                <div class="code-header">
+                  <span class="file-name">style.css</span>
+                    <div style="position: relative;">
+                      <button class="copy-btn" data-target="css-output" aria-label="CSSコードをコピー">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                      </button>
+                      <div class="copy-feedback" data-for="css-output">コピーしました</div>
+                    </div>
+                </div>
+                <pre><code id="css-output"></code></pre>
+              </div>
+
             </div>
           </div>
-        </main>
+          <div id="preview" class="tab-content">
+            <iframe id="preview-output" title="生成されたUIのプレビュー"></iframe>
+          </div>
+        </div>
       </div>
     `;
     return template;
@@ -139,61 +184,50 @@ class GenerativeUi extends HTMLElement {
     loadingOverlay: '#loading-overlay',
     errorDisplay: '#error-display',
     outputContainer: '#output-container',
+    codeArea: '.code-area',
     htmlOutput: '#html-output',
     cssOutput: '#css-output',
     previewOutput: '#preview-output',
     copyButtons: '.copy-btn',
     tabs: '.tab',
     tabContents: '.tab-content',
-    responseTimeDisplay: '#response-time-display',
-    historySidebar: '#history-sidebar',
-    historyList: '#history-list',
-    historyLoading: '#history-loading',
   };
-
-  static CLASSES = {
-    ACTIVE: 'active',
-    HIDDEN: 'hidden',
-    SHOW: 'show',
-  }
-
-  static UI_STATES = {
-    LOADING: 'LOADING',
-    SUCCESS: 'SUCCESS',
-    ERROR: 'ERROR',
-  };
-
-  // 2. プライベートプロパティ
 
   #apiKey = null;
-  #originalHtml = '';
+  #requestPrompt = null; // 新しい属性
+  #originalHtml = ''; // 子要素のHTML
   #elements = {};
   #abortController = null;
-  #historyApiUrl = null;
-  #histories = [];
-  #currentHistoryId = null;
-  #conversationHistory = [];
-  #rirekiId = null;
-
-  // 3. ライフサイクル
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.shadowRoot.appendChild(GenerativeUi.TEMPLATE.content.cloneNode(true));
-    this.#cacheElements();
+    this.shadowRoot.appendChild(GeminiComponent.TEMPLATE.content.cloneNode(true));
+
+    for (const key in GeminiComponent.SELECTORS) {
+      const element = this.shadowRoot.querySelectorAll(GeminiComponent.SELECTORS[key]);
+      this.#elements[key] = element.length > 1 ? Array.from(element) : element[0];
+    }
   }
 
   connectedCallback() {
-    this.#initializeProperties();
+    this.#apiKey = this.getAttribute('api-key');
+    this.#requestPrompt = this.getAttribute('request');
+    this.#originalHtml = this.innerHTML.trim(); // 子要素のHTMLを取得
 
-    if (this.#validateAttributes()) {
-      this.#addEventListeners();
-      this.#startGeneration();
+    if (!this.#apiKey) {
+      console.error('GeminiComponent: "api-key" attribute is required.');
+      this.#updateUIState('ERROR', { message: 'APIキーが設定されていません。' });
+      return; // APIキーがない場合は処理を中断
     }
-    if (this.#historyApiUrl) {
-      this.#fetchHistory();
+    if (!this.#requestPrompt) {
+      console.error('GeminiComponent: "request" attribute is required.');
+      this.#updateUIState('ERROR', { message: 'UIの要望("request"属性)が設定されていません。' });
+      return; // リクエストがない場合は処理を中断
     }
+
+    this.#addEventListeners();
+    this.#processRequest(); // 初期ロード時にAPIリクエストを実行
   }
 
   disconnectedCallback() {
@@ -201,121 +235,102 @@ class GenerativeUi extends HTMLElement {
     this.#abortController?.abort();
   }
 
-  // 4. イベントハンドラ
+  #addEventListeners() {
+    this.#elements.copyButtons.forEach(btn => btn.addEventListener('click', this.#handleCopy));
+    this.#elements.tabs.forEach(tab => tab.addEventListener('click', () => this.#switchTab(tab.dataset.tab)));
+  }
 
-  #handleCopy = async(event) => {
+  #removeEventListeners() {
+    this.#elements.copyButtons.forEach(btn => btn.removeEventListener('click', this.#handleCopy));
+    // タブのイベントリスナーは静的なので、DOMから外れる時に削除する必要は薄いですが、厳密には削除すべき
+    this.#elements.tabs.forEach(tab => tab.removeEventListener('click', () => this.#switchTab(tab.dataset.tab)));
+  }
+
+  #updateUIState(state, payload = {}) {
+    const { loadingOverlay, outputContainer, errorDisplay, htmlOutput, cssOutput, previewOutput } = this.#elements;
+
+    loadingOverlay.classList.add('hidden');
+    outputContainer.classList.add('hidden');
+    errorDisplay.classList.add('hidden');
+
+    switch (state) {
+      case 'LOADING':
+        loadingOverlay.classList.remove('hidden');
+        break;
+
+      case 'ERROR':
+        errorDisplay.classList.remove('hidden');
+        errorDisplay.textContent = `エラー: ${payload.message}`;
+        outputContainer.classList.add('hidden'); // エラー時は結果を非表示に
+        break;
+
+      case 'SUCCESS':
+        outputContainer.classList.remove('hidden');
+        const { html, css } = payload;
+        htmlOutput.textContent = html;
+        cssOutput.textContent = css;
+        previewOutput.srcdoc = this.#createPreviewDoc(html, css);
+        this.#switchTab('code'); // 成功時はコードタブをデフォルトにする
+        break;
+    }
+  }
+
+  #processRequest = async () => {
+    this.#updateUIState('LOADING');
+    this.#abortController = new AbortController();
+
+    try {
+      const prompt = this.#buildPrompt(this.#originalHtml, this.#requestPrompt);
+      const responseText = await this.#callGeminiApi(prompt, this.#abortController.signal);
+
+      if (!responseText) throw new Error("APIから空の応答がありました。");
+
+      const jsonResponse = JSON.parse(responseText);
+
+      if (typeof jsonResponse.html !== 'string' || typeof jsonResponse.css !== 'string') {
+        throw new Error("APIの応答が期待したJSON形式ではありません。");
+      }
+      this.#updateUIState('SUCCESS', jsonResponse);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error("処理中にエラーが発生しました:", error);
+        this.#updateUIState('ERROR', { message: error.message });
+      }
+    } finally {
+      this.#abortController = null;
+    }
+  };
+
+  #handleCopy = (event) => {
     const button = event.currentTarget;
     const targetId = button.dataset.target;
     const codeElement = this.shadowRoot.querySelector(`#${targetId}`);
     if (!codeElement) return;
-    const feedbackElement = this.shadowRoot.querySelector(`.copy-feedback[data-for="${targetId}"]`);
-    try {
-      await navigator.clipboard.writeText(codeElement.textContent);
-      feedbackElement.classList.add(GenerativeUi.CLASSES.SHOW);
-      setTimeout(() => feedbackElement.classList.remove(GenerativeUi.CLASSES.SHOW), 2000);
-    } catch (err) {
-      console.error('コピーに失敗しました: ', err);
-    }
+
+    const textToCopy = codeElement.textContent;
+    const feedbackElement = button.closest('[style*="position: relative"]').querySelector(`.copy-feedback[data-for="${targetId}"]`);
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      feedbackElement.classList.add('show');
+      setTimeout(() => feedbackElement.classList.remove('show'), 2000);
+    }).catch(err => {
+      console.error('コピーに失敗しました', err);
+    });
   };
 
-  #handleTabClick = (event) => {
-    const tabName = event.currentTarget.dataset.tab;
-    this.#switchTab(tabName);
-  }
-
-  #handleHistoryClick = (event) => {
-    const historyItemElement = event.currentTarget;
-    const historyId = historyItemElement.dataset.id;
-    const selectedHistory = this.#histories.find(h => h.id === historyId);
-    if (selectedHistory) {
-      this.#currentHistoryId = historyId;
-      const payload = {
-        html: selectedHistory.generatedHtml,
-        css: selectedHistory.generatedCss,
-      };
-      this.#updateUIState(GenerativeUi.UI_STATES.SUCCESS, payload);
-      this.#updateHistorySelection();
-    }
+  #switchTab = (tabName) => {
+    this.#elements.tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.tab === tabName));
+    this.#elements.tabContents.forEach(content => content.classList.toggle('active', content.id === tabName));
   };
-
-  // 5. コアロジック
-
-  async #startGeneration() {
-    const request = this.getAttribute('request');
-    if (!request) {
-      return;
-    }
-    this.#updateUIState(GenerativeUi.UI_STATES.LOADING);
-    if (this.#rirekiId) {
-      try {
-        const pastHistory = await this.#fetchHistoryById(this.#rirekiId);
-        this.#conversationHistory = pastHistory.conversationHistory || [];
-      } catch (error) {
-        this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: error.message });
-        return;
-      }
-    } else {
-      this.#conversationHistory = [];
-    }
-    this.#conversationHistory.push({ role: 'user', content: request });
-    this.#processRequest(request);
-  }
-
-  async #fetchHistoryById(historyId) {
-    if (!this.#historyApiUrl) {
-      throw new Error('履歴の読み込みには「history-api-url」属性が必要です。');
-    }
-    const url = `${this.#historyApiUrl}/${historyId}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`履歴(ID: ${historyId})の読み込みに失敗しました: ${response.statusText}`);
-    }
-    return await response.json();
-  }
-
-
-  #processRequest = async (currentPrompt) => {
-    this.#abortController = new AbortController();
-
-    const startTime = performance.now();
-
-    try {
-      const prompt = this.#buildPrompt(this.#originalHtml, this.#conversationHistory);
-      const responseText = await this.#callGeminiApi(prompt, this.#abortController.signal);
-      const jsonResponse = this.#parseApiResponse(responseText);
-
-      this.#conversationHistory.push({ role: 'model', content: jsonResponse });
-
-      this.#updateUIState(GenerativeUi.UI_STATES.SUCCESS, jsonResponse);
-
-      if (this.#historyApiUrl) {
-        await this.#saveHistory(currentPrompt, jsonResponse.html, jsonResponse.css);
-      }
-    } catch (error) {
-      if (error.name !== 'AboutError') {
-        console.error("処理中にエラーが発生しました:", error);
-        this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: error.message });
-      }
-    } finally {
-      const endTime = performance.now();
-      const duration = ((endTime - startTime) / 1000).toFixed(2);
-      if (this.#elements.responseTimeDisplay) {
-        this.#elements.responseTimeDisplay.textContent = `応答速度: ${duration}秒`;
-      }
-      this.#abortController = null;
-    }
-  }
 
   async #callGeminiApi(prompt, signal) {
-    const url = `${GenerativeUi.API_BASE_URL}?key=${this.#apiKey}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 1,
       },
     };
-
+    const url = `${GeminiComponent.API_BASE_URL}?key=${this.#apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -332,206 +347,26 @@ class GenerativeUi extends HTMLElement {
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
   }
 
-  #parseApiResponse(responseText) {
-    if (!responseText) {
-      throw new Error("APIは空のレスポンスを返しました。")
-    }
-
-    try {
-      const jsonResponse = JSON.parse(responseText);
-      if (typeof jsonResponse.html !== 'string' || typeof jsonResponse.css !== 'string') {
-        throw new Error("APIからのJSONフォーマットが無効です。「html」と「css」のキーが必要です。")
-      }
-      return jsonResponse;
-    } catch (error) {
-      console.error("APIレスポンスの解析に失敗しました: ", responseText);
-      throw new Error("APIからの応答を解析できませんでした。")
-    }
-  }
-
-  async #fetchHistory() {
-    this.#elements.historyLoading.classList.remove(GenerativeUi.CLASSES.HIDDEN);
-    try {
-      const response = await fetch(this.#historyApiUrl);
-      if (!response.ok) throw new Error(`履歴の取得に失敗しました: ${response.statusText}`);
-      this.#histories = await response.json();
-      this.#renderHistory();
-    } catch (error) {
-      console.error(error);
-      this.#elements.historyList.innerHTML = `<li>履歴の読み込みに失敗しました。</li>`;
-    } finally {
-      this.#elements.historyLoading.classList.add(GenerativeUi.CLASSES.HIDDEN);
-    }
-  }
-
-  async #saveHistory(prompt, generatedHtml, generatedCss) {
-    try {
-      const response = await fetch(this.#historyApiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestPrompt: prompt,
-          originalHtml: this.#originalHtml,
-          generatedHtml,
-          generatedCss,
-          conversationHistory: this.#conversationHistory,
-        }),
-      });
-      if (!response.ok) throw new Error(`履歴の保存に失敗しました: ${response.statusText}`);
-      const newHistory = await response.json();
-      this.#histories.unshift(newHistory);
-      this.#currentHistoryId = newHistory.id;
-      this.#renderHistory();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // 6. UI操作
-
-  #updateUIState(state, payload = {}) {
-    const { loadingOverlay, outputContainer, errorDisplay, htmlOutput, cssOutput, previewOutput, responseTimeDisplay } = this.#elements;
-    const { HIDDEN } = GenerativeUi.CLASSES;
-
-    loadingOverlay.classList.add(HIDDEN)
-    outputContainer.classList.add(HIDDEN);
-    errorDisplay.classList.add(HIDDEN);
-
-    if (responseTimeDisplay) {
-      responseTimeDisplay.classList.add(HIDDEN);
-    }
-
-    switch (state) {
-      case GenerativeUi.UI_STATES.LOADING:
-        loadingOverlay.classList.remove(HIDDEN);
-        break;
-
-      case GenerativeUi.UI_STATES.ERROR:
-        errorDisplay.textContent = `エラー: ${payload.message}`;
-        errorDisplay.classList.remove(HIDDEN);
-        if (responseTimeDisplay) {
-          responseTimeDisplay.classList.remove(HIDDEN);
-        }
-        break;
-
-      case GenerativeUi.UI_STATES.SUCCESS:
-        const { html, css } = payload;
-        htmlOutput.textContent = html;
-        cssOutput.textContent = css;
-        previewOutput.srcdoc = this.#createPreviewDoc(html, css);
-        outputContainer.classList.remove(HIDDEN);
-        this.#switchTab('code');
-        if (responseTimeDisplay) {
-          responseTimeDisplay.classList.remove(HIDDEN);
-        }
-        break;
-    }
-  }
-
-  #switchTab = (tabName) => {
-    const { ACTIVE } = GenerativeUi.CLASSES;
-    this.#elements.tabs.forEach(tab => tab.classList.toggle(ACTIVE, tab.dataset.tab === tabName));
-    this.#elements.tabContents.forEach(content => content.classList.toggle(ACTIVE, content.id === tabName));
-  };
-
-  #renderHistory() {
-    const list = this.#elements.historyList;
-    list.innerHTML = '';
-    if (this.#histories.length === 0) {
-      list.innerHTML = `<li>履歴はありません。</li>`;
-      return;
-    }
-    this.#histories.forEach(history => {
-      const item = document.createElement('li');
-      item.className = 'history-item';
-      item.dataset.id = history.id;
-      const date = new Date(history.createdAt._seconds * 1000).toLocaleString('ja-JP');
-      item.innerHTML = `
-        <div class="history-item-prompt">${history.requestPrompt}</div>
-        <div class="history-item-date">${date}</div>
-        <div style="font-size: 0.7rem; color: #9ca3af; word-break: break-all;">ID: ${history.id}</div>
-      `;
-      item.addEventListener('click', this.#handleHistoryClick);
-      list.appendChild(item);
-    });
-    this.#updateHistorySelection();
-  }
-
-  #updateHistorySelection() {
-    const items = this.shadowRoot.querySelectorAll('.history-item');
-    items.forEach(item => {
-      item.classList.toggle('selected', item.dataset.id === this.#currentHistoryId);
-    });
-  }
-
-  // 7. ヘルパー
-
-  #cacheElements() {
-    for (const key in GenerativeUi.SELECTORS) {
-      const elements = this.shadowRoot.querySelectorAll(GenerativeUi.SELECTORS[key]);
-      this.#elements[key] = elements.length > 1 ? Array.from(elements) : elements[0];
-    }
-  }
-
-  #initializeProperties() {
-    this.#apiKey = this.getAttribute('api-key');
-    this.#originalHtml = this.innerHTML.trim();
-    this.#historyApiUrl = this.getAttribute('history-api-url');
-    this.#rirekiId = this.getAttribute('rireki');
-  }
-
-  #validateAttributes() {
-    if (!this.#apiKey) {
-      this.#updateUIState(GenerativeUi.UI_STATES.ERROR, { message: '「api-key」属性が必要です。'});
-      return false;
-    }
-    return true;
-  }
-
-  #addEventListeners() {
-    this.#elements.copyButtons.forEach(btn => btn.addEventListener('click', this.#handleCopy));
-    this.#elements.tabs.forEach(tab => tab.addEventListener('click', this.#handleTabClick));
-  }
-
-  #removeEventListeners() {
-    this.#elements.copyButtons.forEach(btn => btn.removeEventListener('click', this.#handleCopy));
-    this.#elements.tabs.forEach(tab => tab.removeEventListener('click', this.#handleTabClick));
-    this.shadowRoot.querySelectorAll('.history-item').forEach(item => {
-      item.removeEventListener('click', this.#handleHistoryClick);
-    });
-  }
-
-  #buildPrompt(html, history) {
-    const historyText = history.map(turn => {
-      if (turn.role === 'user') {
-        return `ユーザーの指示: ${turn.content}`;
-      } else {
-        return `AIの応答:\n${JSON.stringify(turn.content, null, 2)}`;
-      }
-    }).join('\n\n---\n\n');
+  #buildPrompt(html, request) {
+    const htmlContent = html
+      ? `対象HTML: ${html}`
+      : `対象HTML: (なし。指示に基づき新規生成)`;
 
     return `
-      あなたはプロのフロントエンジニアです。
-      ユーザーとの対話形式でUIを改善していきます。
-      これまでの対話の文脈を考慮して、最後のユーザー指示に従ってHTMLとCSSを生成してください。
+      あなたはモダンなUIを生成するエキスパートです。指示と対象HTMLに基づき、HTMLとCSSを生成します。
 
-      【出力ルール】
-      - 回答は必ずJSON形式でなければなりません。
-      - JSONオブジェクトは 'html' と 'css' の2つのキーを持つ必要があります。
-      - 'html' の値は変更後のHTMLコード（文字列）です。
-      - 'css' の値は生成されたCSSコード（文字列）です。
-      - JSONを囲む\`\`\`jsonや\`\`\`のようなMarkdownのコードブロック識別子を絶対に含めないでください。
-      - 回答には純粋なJSONオブジェクトのみとしてください。説明や他のテキストは一切不要です。
+      【ルール】
+      1. HTML: セマンティックHTMLとA11y (ARIAロール) を使用。
+      2. CSS: モダン、レスポンシブ (メディアクエリ)、自己完結 (外部ライブラリ/リソース禁止)。
+      3. 禁止: <script>, インラインイベント (onclick), 外部リソース (url(), @import)。
 
-      【最初のHTML】
-      ${html}
+      【出力形式 (JSON)】
+      - 必須キー: "html" (文字列), "css" (文字列)。
+      - JSONオブジェクトのみを回答。説明やMarkdownコードブロックは不要。
 
-      【これまでの対話履歴】
-      ${historyText}
-
-      【タスク】
-      最後のユーザー指示に基づいて、新しいHTMLとCSSを生成してください。
-      HTMLは常に【最初のHTML】をベースに変更を加える形式で、最終的な完成形を出力してください。
+      【入力】
+      指示: ${request}
+      ${htmlContent}
     `;
   }
 
@@ -541,7 +376,10 @@ class GenerativeUi extends HTMLElement {
       <html lang="ja">
       <head>
         <meta charset="UTF-8">
-        <style>body { font-family: sans-serif; } ${css}</style>
+        <style>
+          body { font-family: sans-serif; }
+          ${css}
+        </style>
       </head>
       <body>
         ${html}
@@ -551,4 +389,4 @@ class GenerativeUi extends HTMLElement {
   }
 }
 
-customElements.define('gen-ui', GenerativeUi);
+customElements.define('gen-ui', GeminiComponent);
