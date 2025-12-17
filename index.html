@@ -3,28 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini UI Former - Declarative</title>
+    <title></title>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfbQKbRyVa7RGSQ97UJgxbfQvp8jpz47w",
+            authDomain: "gen-ui-1e466.firebaseapp.com",
+            projectId: "gen-ui-1e466",
+            storageBucket: "gen-ui-1e466.firebasestorage.app",
+            messagingSenderId: "99582236101",
+            appId: "1:99582236101:web:1802609b3c7457951be7ac",
+            measurementId: "G-RFCMF4L4G5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
     <script type="module" src="gen-ui.js"></script>
     <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 2rem;
-            background-color: #f4f4f9;
-            color: #333;
+        /* --- ここから：意地悪なレガシースタイル（実験用の汚染CSS） --- */
+
+        /* 攻撃的なリセット：これをやると現代のレイアウトは崩れやすい */
+        * {
+            box-sizing: content-box;
         }
-        h1 { margin-bottom: 2rem; }
+
+        body {
+            background-color: #f0f0f0;
+            font-family: "MS PGothic", "Osaka", Arial, sans-serif; /* 古いフォント指定 */
+        }
+
+        /* 全ての見出しを赤く、下線を引く（コンポーネント内に影響するかテスト） */
+        h1, h2, h3 {
+            color: #d9534f !important;
+            border-bottom: 3px double #8b0000;
+            margin-bottom: 20px;
+        }
+
+        /* 全てのボタンを強制的に「緑色・角丸なし・巨大化」させる */
+        button {
+            background-color: #5cb85c !important;
+            color: white !important;
+            border-radius: 0 !important;
+            padding: 15px 30px !important;
+            font-weight: bold;
+            box-shadow: 5px 5px 0px #000;
+        }
+
+        /* リンクを強制的に青く、太字にする */
+        a {
+            color: blue !important;
+            text-decoration: underline !important;
+            font-weight: bold;
+        }
+
+        /* --- ここまで：意地悪なレガシースタイル --- */
+
+
+        /* 以下は管理画面のレイアウト用 */
+        .navbar-inverse { border-radius: 0; margin-bottom: 0; }
+        .sidebar {
+            background-color: #333;
+            color: #fff;
+            min-height: 100vh;
+            padding-top: 20px;
+        }
+        .sidebar a { color: #ccc; display: block; padding: 10px 20px; }
+        .sidebar a:hover { background-color: #555; text-decoration: none !important; }
+        .main-content { padding: 40px; }
+        .panel-legacy {
+            background: #fff;
+            border: 1px solid #999;
+            padding: 20px;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
-    <h1>Gen-ui</h1>
 
     <gen-ui
         api-key="AIzaSyAXa9INaJqJxVt3aVmw6isen3d6OfAcmsI"
-        request="IT企業のコーポレートサイトを作成してください"
+        collection="form"
+        save-key="reservation-form"
+        request="予約フォームを作成して"
     >
+
+    <h2>予約フォーム</h2>
+    <input type="text" placeholder="お名前">
+    <input type="date">
+    <input type="time">
+    <select aria-label="メニュー">
+        <option value="haircut">ヘアカット</option>
+        <option value="color">カラー</option>
+        <option value="perm">パーマ</option>
+    </select>
+    <button type="submit">予約する</button>
+
     </gen-ui>
 
 </body>

@@ -56,23 +56,6 @@ class GeminiComponent extends HTMLElement {
         .tab { padding: 0.5rem 1rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; }
         .tab.active { border-color: #d1d5db; border-bottom-color: white; border-radius: 0.375rem 0.375rem 0 0; background-color: white; }
 
-        #save-button {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.4rem 0.8rem;
-          margin-right: 0.5rem;
-          border: 1px solid #d1d5db;
-          border-radius: 0.375rem;
-          background-color: #f9fafb;
-          cursor: pointer;
-          font-weight: 500;
-          color: #374151;
-          font-size: 0.875rem;
-        }
-        #save-button:hover { background-color: #f3f4f6; }
-        #save-button svg { fill: #374151; }
-
         /* --- Tab Content --- */
         .tab-content { display: none; border: 1px solid #d1d5db; border-top: none; padding: 0; border-radius: 0 0 0.375rem 0.375rem; }
         .tab-content#code { padding: 1rem; }
@@ -155,20 +138,42 @@ class GeminiComponent extends HTMLElement {
             display: block;
         }
         #error-display { color: #ef4444; font-weight: 500; padding: 1rem; }
+
+        /* Info Display Update */
         #info-display {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 1rem;
           font-size: 0.875rem;
           color: #6b7280;
           padding: 0 1.5rem 0.5rem;
-          text-align: right;
           margin-top: -1rem;
           margin-bottom: 0.5rem;
         }
+        .key-badge {
+          background-color: #e0f2fe;
+          color: #0369a1;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-family: monospace;
+          font-weight: bold;
+          border: 1px solid #bae6fd;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .key-badge:hover {
+          background-color: #bae6fd;
+        }
+
         .hidden { display: none !important; }
       </style>
       <div class="container">
         <div id="loading-overlay" class="loading-overlay hidden">
           <div class="spinner"></div>
-          <div>UIを生成中...</div>
+          <div id="loading-text">UIを生成中...</div>
         </div>
 
         <div id="error-display" class="hidden"></div>
@@ -181,11 +186,7 @@ class GeminiComponent extends HTMLElement {
               <div class="tab active" data-tab="code">コード</div>
               <div class="tab" data-tab="preview">プレビュー</div>
             </div>
-            <button id="save-button" class="hidden" title="履歴として保存">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-              <span>保存</span>
-            </button>
-          </div>
+            </div>
 
           <div id="code" class="tab-content active">
             <div class="code-area">
@@ -227,6 +228,7 @@ class GeminiComponent extends HTMLElement {
 
   static SELECTORS = {
     loadingOverlay: '#loading-overlay',
+    loadingText: '#loading-text',
     errorDisplay: '#error-display',
     infoDisplay: '#info-display',
     outputContainer: '#output-container',
@@ -237,12 +239,14 @@ class GeminiComponent extends HTMLElement {
     copyButtons: '.copy-btn',
     tabs: '.tab',
     tabContents: '.tab-content',
-    saveButton: '#save-button',
   };
 
   #apiKey = null;
-  #requestPrompt = null; // 新しい属性
-  #originalHtml = ''; // 子要素のHTML
+  #requestPrompt = null;
+  #originalHtml = '';
+  #collection = null;
+  #loadKey = null;
+  #saveKey = null;
   #elements = {};
   #abortController = null;
 
@@ -264,6 +268,9 @@ class GeminiComponent extends HTMLElement {
   connectedCallback() {
     this.#apiKey = this.getAttribute('api-key');
     this.#requestPrompt = this.getAttribute('request');
+    this.#collection = this.getAttribute('collection');
+    this.#loadKey = this.getAttribute('load-key');
+    this.#saveKey = this.getAttribute('save-key');
     this.#originalHtml = this.innerHTML.trim();
 
     if (!this.#apiKey) {
@@ -271,14 +278,20 @@ class GeminiComponent extends HTMLElement {
       this.#updateUIState('ERROR', { message: 'APIキーが設定されていません。' });
       return;
     }
-    if (!this.#requestPrompt) {
-      console.error('GeminiComponent: "request" attribute is required.');
-      this.#updateUIState('ERROR', { message: 'UIの要望("request"属性)が設定されていません。' });
-      return;
-    }
 
-    this.#addEventListeners();
-    this.#processRequest();
+    // load-key がある場合は読み込みモード、なければ生成モード
+    if (this.#loadKey && this.#collection) {
+      this.#addEventListeners();
+      this.#loadFromFirestore();
+    } else {
+      if (!this.#requestPrompt) {
+        console.error('GeminiComponent: "request" attribute is required.');
+        this.#updateUIState('ERROR', { message: 'UIの要望("request"属性)が設定されていません。' });
+        return;
+      }
+      this.#addEventListeners();
+      this.#processRequest();
+    }
   }
 
   disconnectedCallback() {
@@ -289,37 +302,37 @@ class GeminiComponent extends HTMLElement {
   #addEventListeners() {
     this.#elements.copyButtons.forEach(btn => btn.addEventListener('click', this.#handleCopy));
     this.#elements.tabs.forEach(tab => tab.addEventListener('click', () => this.#switchTab(tab.dataset.tab)));
-    this.#elements.saveButton.addEventListener('click', this.#handleSave);
   }
 
   #removeEventListeners() {
     this.#elements.copyButtons.forEach(btn => btn.removeEventListener('click', this.#handleCopy));
     this.#elements.tabs.forEach(tab => tab.removeEventListener('click', () => this.#switchTab(tab.dataset.tab)));
-    this.#elements.saveButton.removeEventListener('click', this.#handleSave);
   }
 
   #updateUIState(state, payload = {}) {
-    const { loadingOverlay, outputContainer, errorDisplay, infoDisplay, htmlOutput, cssOutput, previewOutput, saveButton } = this.#elements;
+    const { loadingOverlay, loadingText, outputContainer, errorDisplay, infoDisplay, htmlOutput, cssOutput, previewOutput } = this.#elements;
 
     // 既存の表示をクリア
     loadingOverlay.classList.add('hidden');
     outputContainer.classList.add('hidden');
     errorDisplay.classList.add('hidden');
     infoDisplay.classList.add('hidden');
-    infoDisplay.textContent = '';
-    saveButton.classList.add('hidden');
+    infoDisplay.innerHTML = ''; // テキストではなくHTMLをクリア
 
-    // 内部データをリセット
-    this.#generatedHtml = null;
-    this.#generatedCss = null;
-    this.#generatedTitle = null;
+    // 内部データをリセット (SUCCESS以外)
+    if (state !== 'SUCCESS') {
+        this.#generatedHtml = null;
+        this.#generatedCss = null;
+        this.#generatedTitle = null;
+    }
 
-    const { durationMs } = payload;
+    const { durationMs, savedKey } = payload;
     const durationText = durationMs ? ` (応答時間: ${(durationMs / 1000).toFixed(2)}秒)` : '';
 
     switch (state) {
       case 'LOADING':
         loadingOverlay.classList.remove('hidden');
+        loadingText.textContent = payload.message || 'UIを生成中...';
         break;
 
       case 'ERROR':
@@ -331,8 +344,17 @@ class GeminiComponent extends HTMLElement {
       case 'SUCCESS':
         outputContainer.classList.remove('hidden');
         infoDisplay.classList.remove('hidden');
-        infoDisplay.textContent = `生成完了${durationText}`;
-        saveButton.classList.remove('hidden');
+
+        // 情報表示エリアの構築
+        let infoHtml = `<span>生成完了${durationText}</span>`;
+        if (savedKey) {
+            infoHtml += `
+                <span class="key-badge" title="クリックしてキーをコピー" onclick="navigator.clipboard.writeText('${savedKey}').then(() => alert('キーをコピーしました: ${savedKey}'))">
+                  KEY: ${savedKey}
+                </span>
+            `;
+        }
+        infoDisplay.innerHTML = infoHtml;
 
         const { html, css, title } = payload;
 
@@ -346,6 +368,38 @@ class GeminiComponent extends HTMLElement {
         previewOutput.srcdoc = this.#createPreviewDoc(html, css);
         this.#switchTab('code');
         break;
+    }
+  }
+
+  #loadFromFirestore = async () => {
+    this.#updateUIState('LOADING', { message: `データ読み込み中 (Key: ${this.#loadKey})...` });
+
+    try {
+        if (typeof firebase === 'undefined' || typeof firebase.firestore === 'undefined') {
+            throw new Error('Firebase SDKが見つかりません。');
+        }
+
+        const db = firebase.firestore();
+        // firestore-key(コレクション) + load-key(ドキュメントID) で取得
+        const docRef = db.collection(this.#collection).doc(this.#loadKey);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            throw new Error('指定されたキーのデータが見つかりませんでした。');
+        }
+
+        const data = doc.data();
+        // SUCCESS状態へ (API呼び出し時間の代わりに読み込み完了とする)
+        this.#updateUIState('SUCCESS', {
+            html: data.html,
+            css: data.css,
+            title: data.title,
+            savedKey: this.#loadKey // 読み込んだキーも表示
+        });
+
+    } catch (error) {
+        console.error("読み込みエラー:", error);
+        this.#updateUIState('ERROR', { message: error.message });
     }
   }
 
@@ -370,7 +424,16 @@ class GeminiComponent extends HTMLElement {
         throw new Error("APIの応答が期待したJSON形式(html, css, title)ではありません。");
       }
 
-      this.#updateUIState('SUCCESS', { ...jsonResponse, durationMs });
+      // Firestoreへの保存 (ランダムキー生成を含む)
+      let savedKey = null;
+      try {
+        savedKey = await this.#saveToFirestore(jsonResponse);
+      } catch (err) {
+        console.error("GeminiComponent: saveToFirestoreで予期せぬエラー", err);
+      }
+
+      this.#updateUIState('SUCCESS', { ...jsonResponse, durationMs, savedKey });
+
     } catch (error) {
       if (error.name !== 'AbortError') {
         if (durationMs === 0) {
@@ -401,43 +464,44 @@ class GeminiComponent extends HTMLElement {
     });
   };
 
-  #handleSave = () => {
-    if (!this.#generatedHtml || !this.#generatedCss || !this.#generatedTitle) {
-      console.error("Save: ダウンロードする生成済みのコンテンツがありません。");
-      return;
+  async #saveToFirestore(data) {
+    if (!this.#collection) {
+      console.log('GeminiComponent: firestore-keyが指定されていないため、保存をスキップします。');
+      return null;
     }
 
-    // 1. 日付文字列の生成 (YYYY-MM-DD)
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const dateString = `${yyyy}-${mm}-${dd}`;
+    if (typeof firebase === 'undefined' || typeof firebase.firestore === 'undefined') {
+      console.error('GeminiComponent: Firebase Firestore SDK (v8互換) がグローバルスコープに見つかりません。');
+      this.#elements.infoDisplay.textContent += ' (Firestore SDK未検出)';
+      return null;
+    }
 
-    // 2. ファイル名の生成
-    // ファイル名として不正な文字を除去
-    const safeTitle = this.#generatedTitle.replace(/[\/\\?%*:|"<>]/g, '-').replace(/\.$/, '').trim();
-    const filename = `${safeTitle}(${dateString}).html`;
+    const docId = this.#saveKey || Math.random().toString(36).substring(2, 10);
 
-    // 3. 保存するHTMLファイルの内容を生成
-    const fileContent = this.#createPreviewDoc(this.#generatedHtml, this.#generatedCss);
+    const saveData = {
+      id: docId,
+      title: data.title,
+      html: data.html,
+      css: data.css,
+      request: this.#requestPrompt,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
 
-    // 4. Blob（ファイルの実体）の作成
-    const blob = new Blob([fileContent], { type: 'text/html;charset=utf-8' });
+    try {
+      const db = firebase.firestore();
 
-    // 5. ダウンロード用のaタグを生成してクリック
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
+      const docRef = db.collection(this.#collection).doc(docId);
 
-    // Firefoxでの互換性のためにbodyに追加
-    document.body.appendChild(link);
-    link.click();
+      await docRef.set(saveData);
 
-    // 後片付け
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-  };
+      console.log(`GeminiComponent: Firestoreにデータを保存しました (Collection: ${this.#collection}, ID: ${docId})`);
+      return docId;
+
+    } catch (error) {
+      console.error(`GeminiComponent: Firestoreへの保存に失敗しました (Path: ${this.#collection})`, error);
+      return null;
+    }
+  }
 
   #switchTab = (tabName) => {
     this.#elements.tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.tab === tabName));
