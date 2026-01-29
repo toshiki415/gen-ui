@@ -1,0 +1,117 @@
+<gen-ui id="gen-b7bsf2h">
+<template>
+    <style>
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+    .profile-card {
+        font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Oxygen,
+        Ubuntu,
+        Cantarell,
+        "Open Sans",
+        "Helvetica Neue",
+        sans-serif;
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 24px;
+        text-align: center;
+        max-width: 320px;
+        margin: 0 auto; /* This centers the component within its parent, not the entire page */
+        color: #333;
+    }
+
+    .profile-image-container {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto 20px auto;
+        border: 3px solid #4285f4; /* Material Design primary color */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .profile-name {
+        font-size: 1.8em;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #212121;
+    }
+
+    .profile-title {
+        font-size: 1em;
+        color: #757575;
+        margin-bottom: 16px;
+    }
+
+    .profile-bio {
+        font-size: 0.9em;
+        line-height: 1.6;
+        color: #424242;
+        text-align: left;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+        .profile-card {
+        padding: 16px;
+        max-width: 90%;
+        }
+
+        .profile-image-container {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 16px;
+        }
+
+        .profile-name {
+        font-size: 1.5em;
+        }
+
+        .profile-title {
+        font-size: 0.9em;
+        }
+
+        .profile-bio {
+        font-size: 0.85em;
+        }
+    }
+    </style>
+    <div class="profile-card" role="region" aria-labelledby="profile-name">
+    <div class="profile-image-container">
+        <img src="../image/profile.jpeg" alt="プロフィール画像" class="profile-image" />
+    </div>
+    <h2 id="profile-name" class="profile-name">山田太郎</h2>
+    <p class="profile-title">Webエンジニア</p>
+    <p class="profile-bio">2018年にスペード株式会社へ入社。その後，2022年にダイヤ株式会社へ転職。</p>
+    </div>
+    <script>
+    (() => {
+        const root = document.getElementById("gen-b7bsf2h").shadowRoot;
+        try {
+        // このプロフィールカードには、特定のJavaScriptによるインタラクションは要求されていません。
+        // もしインタラクティブな要素（例：編集ボタンなど）があれば、そのロジックがここに記述されます。
+        } catch (e) {
+        console.error("GenUI Script Error:", e);
+        }
+    })();
+    </script>
+</template>
+</gen-ui>

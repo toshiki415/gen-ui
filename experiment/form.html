@@ -1,0 +1,175 @@
+<gen-ui id="gen-2b9321v">
+<template>
+    <style>
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+    .login-form {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        margin: 0 auto;
+        font-family: "Roboto", sans-serif; /* Material design font suggestion */
+    }
+
+    .login-form__title {
+        font-size: 24px;
+        color: #333333;
+        margin-bottom: 24px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group__label {
+        display: block;
+        font-size: 14px;
+        color: #555555;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+
+    .form-group__input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #cccccc;
+        border-radius: 4px;
+        font-size: 16px;
+        box-sizing: border-box;
+        transition:
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
+    }
+
+    .form-group__input:focus {
+        border-color: #2196f3; /* Material primary blue */
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        outline: none;
+    }
+
+    .login-form__button {
+        width: 100%;
+        padding: 12px;
+        background-color: #2196f3; /* Material primary blue */
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+        background-color 0.3s ease,
+        box-shadow 0.3s ease;
+    }
+
+    .login-form__button:hover {
+        background-color: #1976d2; /* Darker blue on hover */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .login-form__button:active {
+        background-color: #1565c0; /* Even darker blue on active */
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .login-form {
+        padding: 16px;
+        width: 95%;
+        }
+
+        .login-form__title {
+        font-size: 20px;
+        margin-bottom: 16px;
+        }
+
+        .form-group__input,
+        .login-form__button {
+        padding: 10px;
+        font-size: 14px;
+        }
+    }
+    </style>
+    <form class="login-form" aria-labelledby="login-form-title">
+    <h2 id="login-form-title" class="login-form__title">ログイン</h2>
+    <div class="form-group">
+        <label for="email" class="form-group__label">メールアドレス</label>
+        <input
+        type="email"
+        id="email"
+        class="form-group__input"
+        placeholder="your@example.com"
+        required
+        aria-required="true"
+        aria-label="メールアドレス"
+        />
+    </div>
+    <div class="form-group">
+        <label for="password" class="form-group__label">パスワード</label>
+        <input
+        type="password"
+        id="password"
+        class="form-group__input"
+        placeholder="パスワード"
+        required
+        aria-required="true"
+        aria-label="パスワード"
+        />
+    </div>
+    <button type="submit" class="login-form__button">ログイン</button>
+    </form>
+    <script>
+    (() => {
+        const root = document.getElementById("gen-2b9321v").shadowRoot;
+        try {
+        try {
+            const loginForm = root.querySelector(".login-form");
+
+            if (loginForm) {
+            loginForm.addEventListener("submit", (event) => {
+                event.preventDefault(); // Prevent default form submission
+
+                const emailInput = root.getElementById("email");
+                const passwordInput = root.getElementById("password");
+
+                if (emailInput && passwordInput) {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+
+                // Basic validation
+                if (!email || !password) {
+                    alert("メールアドレスとパスワードを入力してください。");
+                    return;
+                }
+
+                // In a real application, you would send this data to a server
+                console.log("ログイン試行:", { email, password });
+                alert("ログインしました！ (実際にはサーバーに送信されます)");
+
+                // Optionally clear the form
+                // loginForm.reset();
+                } else {
+                console.error("Email or password input not found.");
+                }
+            });
+            } else {
+            console.error("Login form not found.");
+            }
+        } catch (error) {
+            console.error("Error in login form script:", error);
+        }
+        } catch (e) {
+        console.error("GenUI Script Error:", e);
+        }
+    })();
+    </script>
+</template>
+</gen-ui>

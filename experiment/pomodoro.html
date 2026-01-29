@@ -1,0 +1,329 @@
+<gen-ui id="gen-5f0cs16">
+<template>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+    .pomodoro-timer {
+      background: #ffffff;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      width: 100%; /* 親要素のコンテンツ幅に合わせる */
+      margin-top: 20px; /* ToDoリストとの間に余白を設ける */
+      box-sizing: border-box; /* paddingをwidthに含める */
+    }
+
+    .timer-modes {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .timer-mode-btn {
+      background-color: #e0e0e0;
+      color: #424242;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition:
+        background-color 0.3s ease,
+        color 0.3s ease,
+        box-shadow 0.3s ease;
+      flex: 1;
+      max-width: 100px;
+    }
+
+    .timer-mode-btn:hover {
+      background-color: #d0d0d0;
+    }
+
+    .timer-mode-btn.active {
+      background-color: #4285f4; /* Material Blue */
+      color: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .timer-mode-btn.active:hover {
+      background-color: #3367d6; /* Darker Blue */
+    }
+
+    .timer-display {
+      font-size: 4rem;
+      font-weight: 700;
+      color: #333;
+      letter-spacing: 2px;
+      background-color: #f5f5f5;
+      padding: 20px 30px;
+      border-radius: 10px;
+      min-width: 200px;
+      text-align: center;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .timer-controls {
+      display: flex;
+      gap: 15px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .timer-control-btn {
+      background-color: #607d8b; /* Material Blue Grey */
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition:
+        background-color 0.3s ease,
+        box-shadow 0.3s ease;
+      flex: 1;
+      max-width: 120px;
+    }
+
+    .timer-control-btn.primary {
+      background-color: #4caf50; /* Material Green */
+    }
+
+    .timer-control-btn.primary:hover {
+      background-color: #43a047; /* Darker Green */
+    }
+
+    .timer-control-btn:hover:not(:disabled) {
+      background-color: #546e7a; /* Darker Blue Grey */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .timer-control-btn:disabled {
+      background-color: #bdbdbd;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      .pomodoro-timer {
+        padding: 1rem;
+        gap: 1rem;
+      }
+
+      .timer-modes {
+        flex-wrap: wrap;
+      }
+
+      .timer-mode-btn {
+        flex: 1 1 auto;
+        max-width: none;
+        font-size: 0.85rem;
+        padding: 8px 10px;
+      }
+
+      .timer-display {
+        font-size: 3rem;
+        padding: 15px 20px;
+      }
+
+      .timer-controls {
+        flex-wrap: wrap;
+      }
+
+      .timer-control-btn {
+        flex: 1 1 auto;
+        max-width: none;
+        font-size: 0.9rem;
+        padding: 10px 15px;
+      }
+    }
+  </style>
+  <div class="pomodoro-timer" role="timer" aria-label="ポモドーロタイマー">
+    <div class="timer-modes" role="tablist">
+      <button
+        id="workModeBtn"
+        class="timer-mode-btn active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="timerDisplay"
+      >
+        作業
+      </button>
+      <button
+        id="shortBreakModeBtn"
+        class="timer-mode-btn"
+        role="tab"
+        aria-selected="false"
+        aria-controls="timerDisplay"
+      >
+        休憩
+      </button>
+      <button
+        id="longBreakModeBtn"
+        class="timer-mode-btn"
+        role="tab"
+        aria-selected="false"
+        aria-controls="timerDisplay"
+      >
+        長休憩
+      </button>
+    </div>
+    <div id="timerDisplay" class="timer-display" role="status" aria-live="polite">
+      <span id="minutes">25</span>:<span id="seconds">00</span>
+    </div>
+    <div class="timer-controls">
+      <button id="startBtn" class="timer-control-btn primary">開始</button>
+      <button id="pauseBtn" class="timer-control-btn" disabled>一時停止</button>
+      <button id="resetBtn" class="timer-control-btn">リセット</button>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById("gen-5f0cs16").shadowRoot;
+      try {
+        try {
+          const workTime = 25 * 60; // 25 minutes
+          const shortBreakTime = 5 * 60; // 5 minutes
+          const longBreakTime = 15 * 60; // 15 minutes
+
+          let currentMode = "work";
+          let timeLeft = workTime;
+          let intervalId = null;
+          let isPaused = true;
+
+          const minutesDisplay = root.getElementById("minutes");
+          const secondsDisplay = root.getElementById("seconds");
+          const workModeBtn = root.getElementById("workModeBtn");
+          const shortBreakModeBtn = root.getElementById("shortBreakModeBtn");
+          const longBreakModeBtn = root.getElementById("longBreakModeBtn");
+          const startBtn = root.getElementById("startBtn");
+          const pauseBtn = root.getElementById("pauseBtn");
+          const resetBtn = root.getElementById("resetBtn");
+
+          function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            minutesDisplay.textContent = String(minutes).padStart(2, "0");
+            secondsDisplay.textContent = String(seconds).padStart(2, "0");
+          }
+
+          function startTimer() {
+            if (!isPaused) return; // Already running
+            isPaused = false;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+
+            intervalId = setInterval(() => {
+              if (timeLeft > 0) {
+                timeLeft--;
+                updateDisplay();
+              } else {
+                clearInterval(intervalId);
+                intervalId = null;
+                isPaused = true;
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+                alert("時間です！"); // Simple alert for now
+                // Optionally, automatically switch mode or play sound
+              }
+            }, 1000);
+          }
+
+          function pauseTimer() {
+            if (isPaused) return; // Already paused
+            isPaused = true;
+            clearInterval(intervalId);
+            intervalId = null;
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+          }
+
+          function resetTimer() {
+            pauseTimer(); // Ensure timer is stopped
+            switch (currentMode) {
+              case "work":
+                timeLeft = workTime;
+                break;
+              case "shortBreak":
+                timeLeft = shortBreakTime;
+                break;
+              case "longBreak":
+                timeLeft = longBreakTime;
+                break;
+            }
+            isPaused = true; // Ensure it's in a paused state after reset
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            updateDisplay();
+          }
+
+          function switchMode(newMode) {
+            if (currentMode === newMode) return; // No change needed
+
+            // Update active button styles
+            root.querySelectorAll(".timer-mode-btn").forEach((btn) => {
+              btn.classList.remove("active");
+              btn.setAttribute("aria-selected", "false");
+            });
+
+            let newTime;
+            switch (newMode) {
+              case "work":
+                newTime = workTime;
+                workModeBtn.classList.add("active");
+                workModeBtn.setAttribute("aria-selected", "true");
+                break;
+              case "shortBreak":
+                newTime = shortBreakTime;
+                shortBreakModeBtn.classList.add("active");
+                shortBreakModeBtn.setAttribute("aria-selected", "true");
+                break;
+              case "longBreak":
+                newTime = longBreakTime;
+                longBreakModeBtn.classList.add("active");
+                longBreakModeBtn.setAttribute("aria-selected", "true");
+                break;
+              default:
+                console.error("Unknown mode:", newMode);
+                return;
+            }
+
+            currentMode = newMode;
+            timeLeft = newTime;
+            pauseTimer(); // Pause current timer if running
+            isPaused = true; // Ensure it's paused after mode switch
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            updateDisplay();
+          }
+
+          // Initial display update
+          updateDisplay();
+
+          // Event Listeners
+          workModeBtn.addEventListener("click", () => switchMode("work"));
+          shortBreakModeBtn.addEventListener("click", () => switchMode("shortBreak"));
+          longBreakModeBtn.addEventListener("click", () => switchMode("longBreak"));
+          startBtn.addEventListener("click", startTimer);
+          pauseBtn.addEventListener("click", pauseTimer);
+          resetBtn.addEventListener("click", resetTimer);
+        } catch (error) {
+          console.error("ポモドーロタイマーの初期化中にエラーが発生しました:", error);
+        }
+      } catch (e) {
+        console.error("GenUI Script Error:", e);
+      }
+    })();
+  </script>
+</template>
+</gen-ui>
