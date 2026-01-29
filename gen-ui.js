@@ -114,7 +114,7 @@ class GenUi extends HTMLElement {
   #abortController = null;
   #fileHandle = null;
   #currentCode = { html: '', css: '', javascript: '' };
-  static #prettierModules = null; // Cache for Prettier
+  static #prettierModules = null;
 
   constructor() {
     super();
@@ -186,11 +186,11 @@ class GenUi extends HTMLElement {
           multiple: false,
         });
 
-        if (confirm(`${handle.name} に挿入しますか？`)) {
-          this.#fileHandle = handle;
-          await this.#directWriteToFile();
-        } 
+        this.#fileHandle = handle;
+        await this.#directWriteToFile();
+        
       } catch (err) {
+        // ファイル選択キャンセル時などは何もしない
       }
     });
 
@@ -237,8 +237,6 @@ class GenUi extends HTMLElement {
       const prettierData = await this.#loadPrettier();
       const rawCode = this.#assembleFinalCode('web-component', myId);
       
-      // Prettier formatting ensures the inserted block is clean and consistently indented,
-      // reducing 'messy' diffs in the editor's Undo/Redo stack.
       const formattedCode = await this.#formatCodeWithPrettier(rawCode, prettierData);
 
       const newContent = originalContent.replace(targetRegex, formattedCode.trim());
@@ -247,8 +245,8 @@ class GenUi extends HTMLElement {
       await writable.write(newContent);
       await writable.close();
 
-      alert('書き換え完了！Prettierで整形しました✨');
-      if (confirm('反映のためにリロードしますか？')) location.reload();
+      // 修正: 書き込み完了後のアラートとリロード確認を削除
+      
     } catch (err) {
       console.error(err);
       alert(`エラー: ${err.message}`);
@@ -265,8 +263,6 @@ class GenUi extends HTMLElement {
     let targetRegex;
 
     if (myId) {
-      // Improved Regex: Ensures we capture the full opening tag even with multiline attributes
-      // and lazily matches content up to the closing tag if it exists.
       targetRegex = new RegExp(`<gen-ui[^>]*id=["']${myId}["'][^>]*>([\\s\\S]*?<\\/gen-ui>)?`, 'i');
       if (!targetRegex.test(content)) throw new Error(`ID="${myId}" が見つかりません。`);
     } else {
@@ -285,7 +281,6 @@ class GenUi extends HTMLElement {
 
     if (mode === 'web-component') {
       const processedJs = javascript.replace(/document\.(querySelector|querySelectorAll|getElementById)/g, 'root.$1');
-      // Intentionally unindented to let Prettier handle the final layout
       return `
 <gen-ui id="${componentId}">
 <template>
@@ -343,7 +338,6 @@ ${html}
     if (!template) return;
     this.shadowRoot.innerHTML = '';
     this.shadowRoot.appendChild(template.content.cloneNode(true));
-    // Re-activate scripts by cloning them
     this.shadowRoot.querySelectorAll('script').forEach(old => {
       const fresh = document.createElement('script');
       fresh.textContent = old.textContent;
@@ -366,18 +360,14 @@ ${html}
   #renderPreview(html, css, javascript, title) {
     this.#currentCode = { html, css, javascript };
     
-    // --- 変更点: iframe内のbodyスタイルからflex中央揃えを削除 ---
     const iframeCss = `body{margin:0;padding:0;min-height:100vh;background:#fff;}*,*::before,*::after{box-sizing:border-box;}${css}`;
     
     this.#elements.previewOutput.srcdoc = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><style>${iframeCss}</style></head><body>${html}<script>try{${javascript||''}}catch(e){console.error(e)}<\/script></body></html>`;
     this.#elements.uiTitle.textContent = title || this.#requestPrompt || 'No Title';
 
-    // --- 追加点: iframe内での右クリック検知 ---
     this.#elements.previewOutput.onload = () => {
         try {
             const doc = this.#elements.previewOutput.contentDocument;
-            
-            // 右クリックでメニュー表示
             doc.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 const iframeRect = this.#elements.previewOutput.getBoundingClientRect();
@@ -385,8 +375,6 @@ ${html}
                 const y = e.clientY + iframeRect.top;
                 this.#showContextMenu(x, y);
             });
-            
-            // 左クリックでメニューを閉じる
             doc.addEventListener('click', () => this.#hideContextMenu());
         } catch (e) {
             console.warn("Context menu access denied", e);
